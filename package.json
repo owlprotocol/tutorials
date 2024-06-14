@@ -1,0 +1,25 @@
+{
+  "name": "owl-tutorial-template",
+  "version": "1.0.0",
+  "description": "A template repository for Owl tutorials (https://docs.owl.build/)",
+  "main": "index.ts",
+  "type": "module",
+  "scripts": {
+    "start": "tsx index.ts",
+    "clean:node_modules": "rimraf node_modules ./**/node_modules"
+  },
+  "author": "",
+  "license": "MIT",
+  "dependencies": {
+    "@owlprotocol/core-trpc": "^3.0.0",
+    "dotenv": "^16.4.5",
+    "patch-package": "^8.0.0",
+    "permissionless": "^0.1.19",
+    "viem": "^2.9.23"
+  },
+  "devDependencies": {
+    "@types/node": "^20.11.10",
+    "tsx": "^3.13.0",
+    "rimraf": "^3.0.2"
+  }
+}
