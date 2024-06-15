@@ -7,10 +7,10 @@ Welcome to the Owl Protocol tutorial template! This repository is designed to he
 This project uses environment variables to manage API keys and other sensitive information. Create a `.env` file in the root directory with the following content:
 
 ```bash
-API_KEY_SECRET='your_project_api_key_here'
+API_KEY_SECRET="YOUR_API_KEY_SECRET"
 ```
 
-Replace `your_project_api_key_here` with your own API key. You can obtain an API key by signing up for an account on the [Owl Protocol dashboard](https://dashboard.owlprotocol.xyz/).
+Replace `YOUR_API_KEY_SECRET` with your own API key. You can obtain an API key by signing up for an account on the [Owl Protocol dashboard](https://dashboard.owlprotocol.xyz/).
 
 ## Installation
 
