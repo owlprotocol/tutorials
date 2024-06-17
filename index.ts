@@ -1,6 +1,6 @@
 import dotenv from "dotenv";
 dotenv.config();
-import { writeFileSync } from "fs";
+import { existsSync, writeFileSync } from "fs";
 // Permissionless imports
 import {
   GetUserOperationReceiptReturnType,
@@ -49,6 +49,10 @@ import {
   ENTRYPOINT_ADDRESS_V07,
   signUserOperationHashWithECDSA,
 } from "permissionless/utils";
+
+if (!existsSync(".env")) {
+  writeFileSync(".env", "API_KEY_SECRET=YOUR_API_KEY_SECRET");
+}
 
 const { API_KEY_SECRET } = process.env;
 
