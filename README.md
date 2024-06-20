@@ -10,7 +10,7 @@ This project uses environment variables to manage API keys and other sensitive i
 API_KEY_SECRET="YOUR_API_KEY_SECRET"
 ```
 
-Replace `YOUR_API_KEY_SECRET` with your own API key. You can obtain an API key by signing up for an account on the [Owl Protocol dashboard](https://dashboard.owlprotocol.xyz/).
+Replace `YOUR_API_KEY_SECRET` with your own API key. You can obtain an API key by signing up for an account on [owl.build](https://owl.build).
 
 ## Installation
 
@@ -22,17 +22,20 @@ pnpm install
 
 ### Running the Project
 
-To start the project, use the following command:
+To start run your script, use the following command:
 
 ```bash
 pnpm start
 ```
 
-This will execute the `index.ts` file, which includes various imports and configurations from different libraries such as Permissionless, Viem, and OWL Protocol.
+This will execute the [index.ts](./index.ts) file, which includes various imports and configurations from different libraries such as Permissionless, Viem, and OWL Protocol.
 
 ### Documentation
 
-For more detailed documentation, please visit the [Owl Protocol Documentation](https://docs.owl.build/).
+For more detailed documentation, please visit [docs.owl.build](https://docs.owl.build/).
+
+### Tutorials
+We recommend following along the tutorials by pasting in the snippets as you go into the [index.ts](./index.ts) file. However, you can also find the combined code of each tutorial under [./tutorials](./tutorials/) and run those directly using `tsx src/gasless-transactions.ts`. You may need to install `tsx` globally with `pnpm -g tsx` to run this.
 
 ### License
 

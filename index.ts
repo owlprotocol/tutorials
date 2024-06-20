@@ -4,49 +4,27 @@ dotenv.config();
 import { existsSync, writeFileSync } from "fs";
 // Viem imports
 import {
-    Address,
-    Hash,
     Hex,
-    concat,
-    createClient as createViemClient,
     createPublicClient,
-    encodeFunctionData,
     http,
-    parseAbiItem,
 } from "viem";
 import {
     generatePrivateKey,
     privateKeyToAccount,
-    signMessage,
 } from "viem/accounts";
-import { lineaTestnet, polygonMumbai, sepolia } from "viem/chains";
 // Permissionless imports
 import {
-    GetUserOperationReceiptReturnType,
-    UserOperation,
-    bundlerActions,
+    createBundlerClient,
     createSmartAccountClient,
-    getAccountNonce,
-    getSenderAddress,
-    getUserOperationHash,
-    waitForUserOperationReceipt,
 } from "permissionless";
 import {
-    privateKeyToSafeSmartAccount,
-    privateKeyToSimpleSmartAccount,
-    signerToSafeSmartAccount,
+    signerToSimpleSmartAccount,
 } from "permissionless/accounts";
 import {
-    pimlicoBundlerActions,
-    pimlicoPaymasterActions,
-} from "permissionless/actions/pimlico";
-import {
-    createPimlicoBundlerClient,
     createPimlicoPaymasterClient,
 } from "permissionless/clients/pimlico";
 import {
     ENTRYPOINT_ADDRESS_V07,
-    signUserOperationHashWithECDSA,
 } from "permissionless/utils";
 // OWL Protocol imports
 import { createClient } from "@owlprotocol/core-trpc/client";
