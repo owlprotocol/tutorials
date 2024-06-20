@@ -19,7 +19,11 @@
   },
   "devDependencies": {
     "@types/node": "^20.11.10",
-    "tsx": "^3.13.0",
+    "tsx": "3.12.7",
     "rimraf": "^3.0.2"
+  },
+  "funding": "https://owlprotocol.xyz",
+  "engines": {
+    "node": "^18.0.0"
   }
 }

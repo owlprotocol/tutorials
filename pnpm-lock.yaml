@@ -31,8 +31,8 @@ importers:
         specifier: ^3.0.2
         version: 3.0.2
       tsx:
-        specifier: ^3.13.0
-        version: 3.14.0
+        specifier: 3.12.7
+        version: 3.12.7
 
 packages:
 
@@ -95,6 +95,15 @@ packages:
 
   '@dfns/sdk@0.3.3':
     resolution: {integrity: sha512-MkZH4ogCr91qWenvttx6Cas04xc/Itf6eDyNADrM8dNdVna2KuasKRHrlFrG8/caedZzpAvZdfjzPfJ6ZPTBxg==}
+
+  '@esbuild-kit/cjs-loader@2.4.4':
+    resolution: {integrity: sha512-NfsJX4PdzhwSkfJukczyUiZGc7zNNWZcEAyqeISpDnn0PTfzMJR1aR8xAIPskBejIxBJbIgCCMzbaYa9SXepIg==}
+
+  '@esbuild-kit/core-utils@3.3.2':
+    resolution: {integrity: sha512-sPRAnw9CdSsRmEtnsl2WXWdyquogVpB3yZ3dgwJfe8zrOzTsV7cJvmwrKVa+0ma5BoiGJ+BoqkMvawbayKUsqQ==}
+
+  '@esbuild-kit/esm-loader@2.6.5':
+    resolution: {integrity: sha512-FxEMIkJKnodyA1OaCUoEvbYRkoZlLZ4d/eXFu9Fh8CbBBgP5EmZxrfTRyN0qpXZ4vOvqnE5YdRdcrmUUXuU+dA==}
 
   '@esbuild/android-arm64@0.18.20':
     resolution: {integrity: sha512-Nz4rJcchGDtENV0eMKUNa6L12zz2zBDXuhj/Vjh18zGqB44Bi7MBMSXjgunJgjRhCmKOjnPuZp4Mb6OKqtMHLQ==}
@@ -2245,8 +2254,8 @@ packages:
   tslib@2.6.3:
     resolution: {integrity: sha512-xNvxJEOUiWPGhUuUdQgAJPKOOJfGnIyKySOc09XkKsgdUV/3E2zvwZYdejjmRgPCgcym1juLH3226yA7sEFJKQ==}
 
-  tsx@3.14.0:
-    resolution: {integrity: sha512-xHtFaKtHxM9LOklMmJdI3BEnQq/D5F73Of2E1GDrITi9sgoVkvIsrQUTY1G8FlmGtA+awCI4EBlTRRYxkL2sRg==}
+  tsx@3.12.7:
+    resolution: {integrity: sha512-C2Ip+jPmqKd1GWVQDvz/Eyc6QJbGfE7NrR3fx5BpEHMZsEHoIxHL1j+lKdGobr8ovEyqeNkPLSKp6SCSOt7gmw==}
     hasBin: true
 
   type-check@0.3.2:
@@ -2568,6 +2577,21 @@ snapshots:
       uuid: 9.0.0
     transitivePeerDependencies:
       - encoding
+
+  '@esbuild-kit/cjs-loader@2.4.4':
+    dependencies:
+      '@esbuild-kit/core-utils': 3.3.2
+      get-tsconfig: 4.7.5
+
+  '@esbuild-kit/core-utils@3.3.2':
+    dependencies:
+      esbuild: 0.18.20
+      source-map-support: 0.5.21
+
+  '@esbuild-kit/esm-loader@2.6.5':
+    dependencies:
+      '@esbuild-kit/core-utils': 3.3.2
+      get-tsconfig: 4.7.5
 
   '@esbuild/android-arm64@0.18.20':
     optional: true
@@ -5410,11 +5434,11 @@ snapshots:
 
   tslib@2.6.3: {}
 
-  tsx@3.14.0:
+  tsx@3.12.7:
     dependencies:
-      esbuild: 0.18.20
-      get-tsconfig: 4.7.5
-      source-map-support: 0.5.21
+      '@esbuild-kit/cjs-loader': 2.4.4
+      '@esbuild-kit/core-utils': 3.3.2
+      '@esbuild-kit/esm-loader': 2.6.5
     optionalDependencies:
       fsevents: 2.3.3
 
