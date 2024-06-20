@@ -20,7 +20,7 @@ To install the required dependencies, run:
 pnpm install
 ```
 
-### Running the Project
+### Tutorial Template
 
 To start run your script, use the following command:
 
@@ -30,12 +30,16 @@ pnpm start
 
 This will execute the [index.ts](./index.ts) file, which includes various imports and configurations from different libraries such as Permissionless, Viem, and OWL Protocol.
 
+Get started by checking out tutorials at [docs.owl.build](https://docs.owl.build)
+
+### Tutorials
+**We recommend following along** the [tutorials](https://docs.owl.build/quickstart) by pasting in the snippets as you go into the [index.ts](./index.ts) file.
+
+However, you can also find the combined code of each tutorial under [./tutorials](./tutorials/) and run those directly using `tsx src/gasless-transactions.ts`. You may need to install `tsx` globally with `pnpm -g tsx` to run this.
+
 ### Documentation
 
 For more detailed documentation, please visit [docs.owl.build](https://docs.owl.build/).
-
-### Tutorials
-We recommend following along the tutorials by pasting in the snippets as you go into the [index.ts](./index.ts) file. However, you can also find the combined code of each tutorial under [./tutorials](./tutorials/) and run those directly using `tsx src/gasless-transactions.ts`. You may need to install `tsx` globally with `pnpm -g tsx` to run this.
 
 ### License
 
