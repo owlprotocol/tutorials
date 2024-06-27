@@ -13,7 +13,6 @@
   "dependencies": {
     "@owlprotocol/core-trpc": "^3.0.0",
     "dotenv": "^16.4.5",
-    "patch-package": "^8.0.0",
     "permissionless": "^0.1.19",
     "viem": "^2.9.23"
   },
