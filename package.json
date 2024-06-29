@@ -14,11 +14,11 @@
     "@owlprotocol/core-trpc": "^3.0.0",
     "dotenv": "^16.4.5",
     "permissionless": "^0.1.19",
-    "viem": "^2.9.23"
+    "viem": "2.9.20"
   },
   "devDependencies": {
     "@types/node": "^20.11.10",
-    "tsx": "3.12.7",
+    "tsx": "^4.11.0",
     "rimraf": "^3.0.2"
   },
   "funding": "https://owlprotocol.xyz",
