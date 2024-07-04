@@ -108,7 +108,7 @@ const owner = privateKeyToAccount(privateKey)
 // Simple smart account owned by signer
 const smartAccount = await signerToSimpleSmartAccount(publicClient, {
     signer: owner,
-    factoryAddress: 0xe7A78BA9be87103C317a66EF78e6085BD74Dd538, //Simple Smart Account factory
+    factoryAddress: "0xe7A78BA9be87103C317a66EF78e6085BD74Dd538", //Simple Smart Account factory
     entryPoint: ENTRYPOINT_ADDRESS_V07,
 })
 
