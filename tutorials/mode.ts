@@ -21,7 +21,7 @@ import {
 
 // Owl Protocol imports
 import { transfer  } from "@owlprotocol/contracts-diamond/artifacts/IERC20";
-import { mainnet, mode } from "@owlprotocol/chains";
+import { mainnet, sepolia, mode, modeTestnet  } from "@owlprotocol/chains";
 import { createOwlPublicClient, createOwlBundlerClient, createOwlPaymasterClient, createUserManagedAccount, getBundlerUrl } from "@owlprotocol/clients";
 import { createClient } from "@owlprotocol/core-trpc";
 
@@ -55,8 +55,14 @@ console.debug(user)
 
 // The id of the blockchain we wish to connect to, replace this with any
 // chainId supported by Owl Protocol.
-const chainL1 = mainnet;
-const chainL2 = mode
+
+// Mainnet
+// const chainL1 = mainnet;
+// const chainL2 = mode;
+
+// Testnet
+const chainL1 = sepolia;
+const chainL2 = modeTestnet;
 
 const chainIdL1 = chainL1.chainId;
 const blockExplorerL1 = chainL1.blockExplorers?.default.url!
@@ -108,7 +114,7 @@ console.log(`Smart account address: ${blockExplorerL2}/address/${smartAccountL2.
 const smartAccountClientL1 = createSmartAccountClient({
     account: smartAccountL1,
     entryPoint: ENTRYPOINT_ADDRESS_V07,
-    chain: chainL2,
+    chain: chainL1,
     bundlerTransport: http(bundlerUrlL1),
     middleware: {
         gasPrice: async () => {
@@ -131,23 +137,29 @@ const smartAccountClientL2 = createSmartAccountClient({
 })
 
 /***** Submit Dummy Gasless Transaction *****/
-// const txHash = await smartAccountClientL2.sendTransaction({
+// const txHashL1 = await smartAccountClientL1.sendTransaction({
     // to: "0xd8da6bf26964af9d7eed9e03e53415d37aa96045", //vitalik.eth
     // value: 0n,
     // data: "0x1234",
 // })
+// console.log(`User operation included: ${blockExplorerL1}/tx/${txHashL1}`)
+
+const txHashL2 = await smartAccountClientL2.sendTransaction({
+    to: "0xd8da6bf26964af9d7eed9e03e53415d37aa96045", //vitalik.eth
+    value: 0n,
+    data: "0x1234",
+})
+console.log(`User operation included: ${blockExplorerL2}/tx/${txHashL2}`)
+
+// const MAINNET_USDC = "0xd988097fb8612cc24eeC14542bC03424c656005f";
+// const fede = "0xEa5bf2AD6af8168DE10546B3e4D5679bb22305C8"
+// const amount = 5_000_000
+//
+// const txHash = await smartAccountClientL2.writeContract({
+    // address: MAINNET_USDC,
+    // abi: [transfer],
+    // functionName: "transfer",
+    // args: [fede, amount]
+// })
 //
 // console.log(`User operation included: ${blockExplorerL2}/tx/${txHash}`)
-
-const MAINNET_USDC = "0xd988097fb8612cc24eeC14542bC03424c656005f";
-const fede = "0xEa5bf2AD6af8168DE10546B3e4D5679bb22305C8"
-const amount = 5_000_000
-
-const txHash = await smartAccountClientL2.writeContract({
-    address: MAINNET_USDC,
-    abi: [transfer],
-    functionName: "transfer",
-    args: [fede, amount]
-})
-
-console.log(`User operation included: ${blockExplorerL2}/tx/${txHash}`)
