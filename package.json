@@ -15,6 +15,7 @@
     "@owlprotocol/chains": "^3.0.0",
     "@owlprotocol/core-trpc": "^3.0.0",
     "@owlprotocol/clients": "^3.0.0",
+    "@owlprotocol/viem-utils": "^3.0.0",
     "dotenv": "^16.4.5",
     "permissionless": "^0.1.19",
     "viem": "2.9.20"
