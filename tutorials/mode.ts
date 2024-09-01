@@ -24,12 +24,14 @@ import {
 } from "permissionless/utils";
 
 // Owl Protocol imports
-import { transfer  } from "@owlprotocol/contracts-diamond/artifacts/IERC20";
+import { transfer, balanceOf, allowance, approve  } from "@owlprotocol/contracts-diamond/artifacts/IERC20";
 import { mainnet, sepolia, mode, modeTestnet  } from "@owlprotocol/chains";
 import { createOwlPublicClient, createOwlBundlerClient, createOwlPaymasterClient, createUserManagedAccount, getBundlerUrl, getPublicUrl } from "@owlprotocol/clients";
 import { createClient } from "@owlprotocol/core-trpc";
 import { topupAddressL2 } from "@owlprotocol/viem-utils";
 import { publicActionsL2, walletActionsL1 } from "viem/op-stack";
+import { BaseError, ContractFunctionRevertedError } from 'viem';
+
 
 //Hello World
 console.log("Welcome to Owl Protocol!");
@@ -151,38 +153,149 @@ const smartAccountClientL2 = createSmartAccountClient({
     },
 })
 
-//1. Send some ETH to your smart account
-const balanceL1Initial = await publicClientL1.getBalance({ address: smartAccountL1.address })
+async function bridgeEth() {
+    const balanceL1Initial = await publicClientL1.getBalance({ address: smartAccountL1.address })
 
-//Bridge L1 funds to L2
-if (balanceL1Initial === 0n) {
-    throw new Error(`Please send 0.1 ETH on ${chainL1.name} to start the tutorial`)
+    //Bridge L1 funds to L2
+    if (balanceL1Initial === 0n) {
+        throw new Error(`Please send 0.1 ETH to ${smartAccountL1.address} on ${chainL1.name} to start the tutorial`)
+    }
+
+    //Simple utility to bridge L1 -> L2 to target balance
+    //Also see https://viem.sh/op-stack/guides/deposits for more low-level info
+    const { balance: balanceL2, l1DepositReceipt, l2DepositReceipt } = await topupAddressL2({
+        publicClientL1,
+        publicClientL2,
+        walletClientL1: smartAccountClientL1,
+        address: smartAccountL2.address,
+        minBalance: 0n,
+        targetBalance: parseEther("0.05")
+    })
+
+    if (l1DepositReceipt) {
+        console.log(`${chainL1.name} bridge transaction input ${blockExplorerL1}/tx/${l1DepositReceipt.transactionHash}`)
+    }
+    if (l2DepositReceipt) {
+        console.log(`${chainL2.name} bridge transaction output ${blockExplorerL2}/tx/${l2DepositReceipt.transactionHash}`)
+    }
+
+    //Updated L1 balance
+    const balanceL1 = await publicClientL1.getBalance({ address: smartAccountL1.address })
+    console.log(`${chainL1.name} ${smartAccountL1.address} ${formatEther(balanceL1)} ${chainL1.nativeCurrency.name}`)
+    console.log(`${chainL2.name} ${smartAccountL2.address} ${formatEther(balanceL2)} ${chainL2.nativeCurrency.name}`)
 }
 
-//Simple utility to bridge L1 -> L2 to target balance
-//Also see https://viem.sh/op-stack/guides/deposits for more low-level info
-const { balance: balanceL2, l1DepositReceipt, l2DepositReceipt } = await topupAddressL2({
-    publicClientL1,
-    publicClientL2,
-    walletClientL1: smartAccountClientL1,
-    address: smartAccountL2.address,
-    minBalance: parseEther("0.06"),
-    targetBalance: parseEther("0.06")
-})
 
-if (l1DepositReceipt) {
-    console.log(`${chainL1.name} bridge transaction input ${blockExplorerL1}/tx/${l1DepositReceipt.transactionHash}`)
+//2. Bridge ERC20
+//https://faucet.circle.com/
+const L1_USDC = "0x1c7D4B196Cb0C7B01d743Fbc6116a902379C7238"; //"0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48";
+//Testnet was deployed using factory
+const L2_USDC = "0x514832A97F0b440567055A73fe03AA160017b990" //"0xd988097fb8612cc24eeC14542bC03424c656005f"
+
+//https://docs.mode.network/general-info/mainnet-contract-addresses/l1-l2-contracts
+const L1_STANDARD_BRIDGE = "0xbC5C679879B2965296756CD959C3C739769995E2" //0x735aDBbE72226BD52e818E7181953f42E3b0FF21
+
+//hard-coded pre-compile https://docs.optimism.io/chain/addresses#op-mainnet-l2
+const L2_OptimismMintableERC20Factory = "0x4200000000000000000000000000000000000012"
+
+//We will be using the same as https://docs.mode.network/tools/bridges programmatically
+async function bridgeERC20() {
+    // Check balance
+    const balanceL1Initial = await publicClientL1.readContract({
+        address: L1_USDC,
+        abi: [balanceOf],
+        functionName: "balanceOf",
+        args: [smartAccountL1.address]
+    })
+    if (balanceL1Initial === 0n) {
+        throw new Error(`Please send 0.1 USDC (${L1_USDC}) to ${smartAccountL1.address} on ${chainL1.name} to start the tutorial`)
+    }
+
+    // Check Allowance & Approve ERC20 for standard bridge
+    const amountApproved = await publicClientL1.readContract({
+        address: L1_USDC,
+        abi: [allowance],
+        functionName: "allowance",
+        args: [smartAccountL1.address, L1_STANDARD_BRIDGE]
+    })
+    console.debug(`${amountApproved} (wei) USDC approved to ${L1_STANDARD_BRIDGE} (L1 Bridge)`)
+
+    const amountApprove = 1_000_000n; //1 USDC
+    if (amountApproved < amountApprove) {
+        const txHashApprove = await smartAccountClientL1.writeContract({
+            account: smartAccountL1,
+            address: L1_USDC,
+            abi: [approve],
+            functionName: "approve",
+            args: [L1_STANDARD_BRIDGE, amountApprove]
+        })
+        console.log(`Approving ${amountApprove} (wei) USDC ${blockExplorerL1}/tx/${txHashApprove}`)
+        await publicClientL1.waitForTransactionReceipt({ hash: txHashApprove });
+    }
+
+    // Bridge to L1 => L2
+    // Bridge ERC20
+    const balanceL2Initial = await publicClientL2.readContract({
+        address: L2_USDC,
+        abi: [balanceOf],
+        functionName: "balanceOf",
+        args: [smartAccountL1.address]
+    })
+    if (balanceL2Initial === 0n) {
+        const abiL1StandardBridge = [{
+            inputs: [
+                { name: "_localToken", type: "address" },
+                {  name: "_remoteToken", type: "address" },
+                {  name: "_to", type: "address" },
+                {  name: "_amount", type: "uint256" },
+                { name: "_minGasLimit", type: "uint32" },
+                { name: "_extraData", type: "bytes" }
+            ],
+            name: "bridgeERC20To",
+            outputs: [],
+            stateMutability: "nonpayable",
+            type: "function",
+        }] as const
+
+        const amountBridge = 100n; //0.1 USDC;
+        const args = {
+            account: smartAccountL1,
+            address: L1_STANDARD_BRIDGE,
+            abi: abiL1StandardBridge,
+            functionName: "bridgeERC20To",
+            args: [L1_USDC, L2_USDC, smartAccountL2.address, amountBridge, 20_000, "0x"]
+        }
+
+        try {
+            const response = await publicClientL1.simulateContract(args as any);
+            const txHashBridge = await smartAccountClientL1.writeContract(response.request);
+
+            /*
+            const txHashBridge = await smartAccountClientL1.writeContract({
+                address: L1_STANDARD_BRIDGE,
+                abi: abiL1StandardBridge,
+                functionName: "bridgeERC20To",
+                args: [L1_USDC, L2_USDC, smartAccountL2.address, amountBridge, 20_000, "0x"]
+            });
+            */
+
+            console.log(`Bridging ${amountBridge} (wei) USDC ${blockExplorerL1}/tx/${txHashBridge}`)
+            await publicClientL1.waitForTransactionReceipt({ hash: txHashBridge });
+        } catch (err) {
+            console.debug(err)
+                if (err instanceof BaseError) {
+                const revertError = err.walk(err => err instanceof ContractFunctionRevertedError)
+                if (revertError instanceof ContractFunctionRevertedError) {
+                const errorName = revertError.data?.errorName ?? ''
+                // do something with `errorName`
+                console.debug(revertError)
+            }
+        }
+  }
+    }
 }
-if (l2DepositReceipt) {
-    console.log(`${chainL2.name} bridge transaction output ${blockExplorerL2}/tx/${l2DepositReceipt.transactionHash}`)
-}
 
-//Updated L1 balance
-const balanceL1 = await publicClientL1.getBalance({ address: smartAccountL1.address })
-console.log(`${chainL1.name} ${smartAccountL1.address} ${formatEther(balanceL1)} ${chainL1.nativeCurrency.name}`)
-console.log(`${chainL2.name} ${smartAccountL2.address} ${formatEther(balanceL2)} ${chainL2.nativeCurrency.name}`)
-
-
+await bridgeERC20()
 
 /***** Submit Dummy Gasless Transaction *****/
 // const txHashL1 = await smartAccountClientL1.sendTransaction({
