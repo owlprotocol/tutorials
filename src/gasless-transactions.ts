@@ -1,47 +1,31 @@
 // Load environment variables
 import dotenv from "dotenv";
 dotenv.config();
-import { existsSync, writeFileSync } from "fs";
 // Viem imports
-import {
-    Hex,
-    createPublicClient,
-    http,
-} from "viem";
-import {
-    generatePrivateKey,
-    privateKeyToAccount,
-} from "viem/accounts";
+import { Hex, createPublicClient, http } from "viem";
+import { generatePrivateKey, privateKeyToAccount } from "viem/accounts";
 // Permissionless imports
-import {
-    createBundlerClient,
-    createSmartAccountClient,
-} from "permissionless";
-import {
-    signerToSimpleSmartAccount,
-} from "permissionless/accounts";
-import {
-    createPimlicoPaymasterClient,
-} from "permissionless/clients/pimlico";
-import {
-    ENTRYPOINT_ADDRESS_V07,
-} from "permissionless/utils";
+import { createBundlerClient, createSmartAccountClient } from "permissionless";
+import { signerToSimpleSmartAccount } from "permissionless/accounts";
+import { createPimlicoPaymasterClient } from "permissionless/clients/pimlico";
+import { ENTRYPOINT_ADDRESS_V07 } from "permissionless/utils";
+import { existsSync, writeFileSync } from "fs";
 
 //Hello World
 console.log("Welcome to Owl Protocol!");
 
 //Create .env file if it doesn't exist
 if (!existsSync(".env")) {
-    console.debug(".env file did not exist so creating one right now with example envvars. Please add your API_KEY_SECRET to that file.")
+    console.debug(
+        ".env file did not exist so creating one right now with example envvars. Please add your API_KEY_SECRET to that file.",
+    );
     writeFileSync(".env", "API_KEY_SECRET=YOUR_API_KEY_SECRET");
 }
 
 //Load API Key from .env file
 const { API_KEY_SECRET } = process.env;
 if (!API_KEY_SECRET || API_KEY_SECRET === "YOUR_API_KEY_SECRET") {
-    throw new Error(
-        `API_KEY_SECRET = ${API_KEY_SECRET}! Ensure it's correctly set in your .env file.`
-    );
+    throw new Error(`API_KEY_SECRET = ${API_KEY_SECRET}! Ensure it's correctly set in your .env file.`);
 }
 
 /***** Create Clients *****/
@@ -55,8 +39,8 @@ const chain = {
     testnet: true,
     nativeCurrency: {
         decimals: 18,
-        name: 'Ether',
-        symbol: 'ETH',
+        name: "Ether",
+        symbol: "ETH",
     },
     rpcUrls: {
         default: {
@@ -66,29 +50,29 @@ const chain = {
     },
 };
 const chainId = 150150;
-const blockExplorer = "https://explorer-testnet.hedwig.build"
+const blockExplorer = "https://explorer-testnet.hedwig.build";
 
 // Create public viem client to read data from blockchain
 // Learn more at https://viem.sh/docs/clients/public
 const publicClient = createPublicClient({
     transport: http(`https://api.owl.build/${chainId}/rpc?apikey=${API_KEY_SECRET}`),
-})
+});
 
 // Create paymaster viem client to sponsor UserOp
 // Learn more at https://docs.pimlico.io/permissionless/reference/clients/pimlicoPaymasterClient
-const paymasterUrl = `https://api.owl.build/${chainId}/rpc?apikey=${API_KEY_SECRET}`
+const paymasterUrl = `https://api.owl.build/${chainId}/rpc?apikey=${API_KEY_SECRET}`;
 const paymasterClient = createPimlicoPaymasterClient({
     transport: http(paymasterUrl),
     entryPoint: ENTRYPOINT_ADDRESS_V07,
-})
+});
 
 // Create bundler viem client to submit UserOp
 // Learn more at https://docs.pimlico.io/permissionless/reference/clients/bundlerClient
-const bundlerUrl = `https://api.owl.build/${chainId}/rpc?apikey=${API_KEY_SECRET}`
+const bundlerUrl = `https://api.owl.build/${chainId}/rpc?apikey=${API_KEY_SECRET}`;
 const bundlerClient = createBundlerClient({
     transport: http(bundlerUrl),
     entryPoint: ENTRYPOINT_ADDRESS_V07,
-})
+});
 
 /***** Create Smart Wallet Owner *****/
 // Load private key from .env or generate a new one (and save it)
@@ -96,13 +80,13 @@ const bundlerClient = createBundlerClient({
 const privateKey =
     (process.env.PRIVATE_KEY as Hex) ??
     (() => {
-        const pk = generatePrivateKey()
-        writeFileSync(".env", `API_KEY_SECRET=${API_KEY_SECRET}\nPRIVATE_KEY=${pk}`)
-        return pk
-    })()
+        const pk = generatePrivateKey();
+        writeFileSync(".env", `API_KEY_SECRET=${API_KEY_SECRET}\nPRIVATE_KEY=${pk}`);
+        return pk;
+    })();
 
 // Owner of the smart account
-const owner = privateKeyToAccount(privateKey)
+const owner = privateKeyToAccount(privateKey);
 
 /***** Create Smart Account *****/
 // Simple smart account owned by signer
@@ -110,9 +94,9 @@ const smartAccount = await signerToSimpleSmartAccount(publicClient, {
     signer: owner,
     factoryAddress: "0xe7A78BA9be87103C317a66EF78e6085BD74Dd538", //Simple Smart Account factory
     entryPoint: ENTRYPOINT_ADDRESS_V07,
-})
+});
 
-console.log(`Smart account address: ${blockExplorer}/address/${smartAccount.address}`)
+console.log(`Smart account address: ${blockExplorer}/address/${smartAccount.address}`);
 
 /***** Create Smart Account Client *****/
 const smartAccountClient = createSmartAccountClient({
@@ -122,17 +106,17 @@ const smartAccountClient = createSmartAccountClient({
     bundlerTransport: http(bundlerUrl),
     middleware: {
         gasPrice: async () => {
-            return (await bundlerClient.getUserOperationGasPrice()).fast
+            return (await bundlerClient.getUserOperationGasPrice()).fast;
         },
         sponsorUserOperation: paymasterClient.sponsorUserOperation,
     },
-})
+});
 
 /***** Submit Gasless Transaction *****/
 const txHash = await smartAccountClient.sendTransaction({
     to: "0xd8da6bf26964af9d7eed9e03e53415d37aa96045", //vitalik.eth
     value: 0n,
     data: "0x1234",
-})
+});
 
-console.log(`User operation included: ${blockExplorer}/tx/${txHash}`)
+console.log(`User operation included: ${blockExplorer}/tx/${txHash}`);
