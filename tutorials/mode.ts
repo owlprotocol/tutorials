@@ -5,16 +5,24 @@ import { existsSync, writeFileSync } from "fs";
 
 // Viem imports
 import {
+    Account,
+    Address,
     Chain,
     createPublicClient,
     formatEther,
     http,
     parseEther,
+    PublicClient,
+    Transport,
+    WalletClient,
+    encodeFunctionData,
+    Hex
 } from "viem";
 
 // Permissionless imports
 import {
     createSmartAccountClient,
+    SmartAccountClient,
 } from "permissionless";
 import {
     signerToSimpleSmartAccount,
@@ -29,8 +37,9 @@ import { mainnet, sepolia, mode, modeTestnet  } from "@owlprotocol/chains";
 import { createOwlPublicClient, createOwlBundlerClient, createOwlPaymasterClient, createUserManagedAccount, getBundlerUrl, getPublicUrl } from "@owlprotocol/clients";
 import { createClient } from "@owlprotocol/core-trpc";
 import { topupAddressL2 } from "@owlprotocol/viem-utils";
-import { publicActionsL2, walletActionsL1 } from "viem/op-stack";
+import { publicActionsL1, publicActionsL2, walletActionsL1 } from "viem/op-stack";
 import { BaseError, ContractFunctionRevertedError } from 'viem';
+import { SwapRouterAbi } from "./abis/SwapRouter.js";
 
 
 //Hello World
@@ -60,17 +69,31 @@ const client = createClient({ apiKey: API_KEY_SECRET });
 const user = await client.admin.user.Managed.create.mutate({ externalId: "my-user" });
 console.debug(user)
 
+//Run the tutorial in testnet / mainnet mode
+const environment: "testnet" | "mainnet" = "testnet"
+const config = {
+    testnet: {
+        chainL1: sepolia,
+        chainL2: modeTestnet,
+        l1StandardBridge: "0xbC5C679879B2965296756CD959C3C739769995E2", //https://docs.mode.network/general-info/mainnet-contract-addresses/l1-l2-contracts
+        USDC_L1: "0x1c7D4B196Cb0C7B01d743Fbc6116a902379C7238", //mint some at https://faucet.circle.com/
+        USDC_L2: "0x514832A97F0b440567055A73fe03AA160017b990", //deployed using L2_OptimismMintableERC20Factory
+        WETH_L2: "0x4200000000000000000000000000000000000006",
+        algrebraSwapRouter: null //kim.exchange not deployed on testnet
+    },
+    mainnet: {
+        chainL1: mainnet,
+        chainL2: mode,
+        l1StandardBridge: "0x735aDBbE72226BD52e818E7181953f42E3b0FF21",
+        USDC_L1: "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48",
+        USDC_L2: "0xd988097fb8612cc24eeC14542bC03424c656005f",
+        WETH_L2: "0x4200000000000000000000000000000000000006",
+        algebraSwapRouter: "0xAc48FcF1049668B285f3dC72483DF5Ae2162f7e8"
+    }
+} as const
 
-// The id of the blockchain we wish to connect to, replace this with any
-// chainId supported by Owl Protocol.
-
-// Mainnet
-// const chainL1 = mainnet;
-// const chainL2 = mode;
-
-// Testnet
-const chainL1 = sepolia;
-const chainL2 = modeTestnet;
+const chainL1 = config[environment].chainL1;
+const chainL2 = config[environment].chainL2;
 
 const chainIdL1 = chainL1.chainId;
 const rpcL1 = getPublicUrl({ chainId: chainIdL1 }) //chainL1.rpcUrls.default.http[0];
@@ -127,7 +150,7 @@ console.log(`Smart account address: ${blockExplorerL1}/address/${smartAccountL1.
 console.log(`Smart account address: ${blockExplorerL2}/address/${smartAccountL2.address}`)
 
 /***** Create Smart Account Client *****/
-const smartAccountClientL1 = createSmartAccountClient({
+const smartAccountClientL1: SmartAccountClient = createSmartAccountClient({
     account: smartAccountL1,
     entryPoint: ENTRYPOINT_ADDRESS_V07,
     chain: chainL1,
@@ -140,7 +163,7 @@ const smartAccountClientL1 = createSmartAccountClient({
     },
     //Extend with L1 actions
 }).extend(walletActionsL1())
-const smartAccountClientL2 = createSmartAccountClient({
+const smartAccountClientL2: SmartAccountClient = createSmartAccountClient({
     account: smartAccountL2,
     entryPoint: ENTRYPOINT_ADDRESS_V07,
     chain: chainL2,
@@ -187,140 +210,179 @@ async function bridgeEth() {
 
 
 //2. Bridge ERC20
-//https://faucet.circle.com/
-const L1_USDC = "0x1c7D4B196Cb0C7B01d743Fbc6116a902379C7238"; //"0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48";
-//Testnet was deployed using factory
-const L2_USDC = "0x514832A97F0b440567055A73fe03AA160017b990" //"0xd988097fb8612cc24eeC14542bC03424c656005f"
-
-//https://docs.mode.network/general-info/mainnet-contract-addresses/l1-l2-contracts
-const L1_STANDARD_BRIDGE = "0xbC5C679879B2965296756CD959C3C739769995E2" //0x735aDBbE72226BD52e818E7181953f42E3b0FF21
-
-//hard-coded pre-compile https://docs.optimism.io/chain/addresses#op-mainnet-l2
-const L2_OptimismMintableERC20Factory = "0x4200000000000000000000000000000000000012"
-
 //We will be using the same as https://docs.mode.network/tools/bridges programmatically
-async function bridgeERC20() {
+export interface BridgeERC20L1toL2Params {
+    /** Bridge params */
+    l1Token: Address,
+    l2Token: Address,
+    amount: bigint,
+    from: Address,
+    to?: Address,
+    /** Network params */
+    publicClientL1: PublicClient,
+    l1StandardBridge: Address,
+}
+
+/**
+ * Get transactions to bridge ERC20 token from optimism L1 to L2
+ * @param params
+ * @return necessary transactions to complete bridging
+ */
+export async function getBridgeERC20L1toL2Transactions(params: BridgeERC20L1toL2Params): Promise<{
+    approval?: { account: Address, to: Address, data: Hex },
+    bridge: { account: Address, to: Address, data: Hex }
+}> {
+    const { from, l1Token, l2Token, amount, publicClientL1, l1StandardBridge } = params;
+    const to = params.to ?? from; //default bridge to self
+
     // Check balance
-    const balanceL1Initial = await publicClientL1.readContract({
-        address: L1_USDC,
+    const balanceL1 = await publicClientL1.readContract({
+        address: l1Token,
         abi: [balanceOf],
         functionName: "balanceOf",
-        args: [smartAccountL1.address]
+        args: [from]
     })
-    if (balanceL1Initial === 0n) {
-        throw new Error(`Please send 0.1 USDC (${L1_USDC}) to ${smartAccountL1.address} on ${chainL1.name} to start the tutorial`)
+    if (balanceL1 < amount) {
+        throw new Error(`${from} has insufficient ${l1Token} token balance ${balanceL1} < ${amount}`)
     }
 
     // Check Allowance & Approve ERC20 for standard bridge
+    let approval: { account: Address, to: Address, data: Hex } | undefined;
     const amountApproved = await publicClientL1.readContract({
-        address: L1_USDC,
+        address: l1Token,
         abi: [allowance],
         functionName: "allowance",
-        args: [smartAccountL1.address, L1_STANDARD_BRIDGE]
+        args: [from, l1StandardBridge]
     })
-    console.debug(`${amountApproved} (wei) USDC approved to ${L1_STANDARD_BRIDGE} (L1 Bridge)`)
 
-    const amountApprove = 1_000_000n; //1 USDC
-    if (amountApproved < amountApprove) {
-        const txHashApprove = await smartAccountClientL1.writeContract({
-            account: smartAccountL1,
-            address: L1_USDC,
+    if (amountApproved < amount) {
+        const data = await encodeFunctionData({
             abi: [approve],
             functionName: "approve",
-            args: [L1_STANDARD_BRIDGE, amountApprove]
+            args: [l1StandardBridge, amount]
         })
-        console.log(`Approving ${amountApprove} (wei) USDC ${blockExplorerL1}/tx/${txHashApprove}`)
-        await publicClientL1.waitForTransactionReceipt({ hash: txHashApprove });
+        approval = { account: from, to: l1Token, data }
     }
 
     // Bridge to L1 => L2
     // Bridge ERC20
-    const balanceL2Initial = await publicClientL2.readContract({
-        address: L2_USDC,
-        abi: [balanceOf],
-        functionName: "balanceOf",
-        args: [smartAccountL1.address]
+    const bridgeERC20ToAbi = [{
+        inputs: [
+            { name: "_localToken", type: "address" },
+            {  name: "_remoteToken", type: "address" },
+            {  name: "_to", type: "address" },
+            {  name: "_amount", type: "uint256" },
+            { name: "_minGasLimit", type: "uint32" },
+            { name: "_extraData", type: "bytes" }
+        ],
+        name: "bridgeERC20To",
+        outputs: [],
+        stateMutability: "nonpayable",
+        type: "function",
+    }] as const
+
+    const data = encodeFunctionData({
+        abi: bridgeERC20ToAbi,
+        functionName: "bridgeERC20To",
+        args: [l1Token, l2Token, to, amount, 20_000, "0x"]
     })
-    if (balanceL2Initial === 0n) {
-        const abiL1StandardBridge = [{
-            inputs: [
-                { name: "_localToken", type: "address" },
-                {  name: "_remoteToken", type: "address" },
-                {  name: "_to", type: "address" },
-                {  name: "_amount", type: "uint256" },
-                { name: "_minGasLimit", type: "uint32" },
-                { name: "_extraData", type: "bytes" }
-            ],
-            name: "bridgeERC20To",
-            outputs: [],
-            stateMutability: "nonpayable",
-            type: "function",
-        }] as const
 
-        const amountBridge = 100n; //0.1 USDC;
-        const args = {
-            account: smartAccountL1,
-            address: L1_STANDARD_BRIDGE,
-            abi: abiL1StandardBridge,
-            functionName: "bridgeERC20To",
-            args: [L1_USDC, L2_USDC, smartAccountL2.address, amountBridge, 20_000, "0x"]
+    return {
+        approval,
+        bridge: {
+            account: from,
+            to: l1StandardBridge,
+            data
         }
+    }
 
-        try {
-            const response = await publicClientL1.simulateContract(args as any);
-            const txHashBridge = await smartAccountClientL1.writeContract(response.request);
+}
 
-            /*
-            const txHashBridge = await smartAccountClientL1.writeContract({
-                address: L1_STANDARD_BRIDGE,
-                abi: abiL1StandardBridge,
-                functionName: "bridgeERC20To",
-                args: [L1_USDC, L2_USDC, smartAccountL2.address, amountBridge, 20_000, "0x"]
-            });
-            */
+function bridgeERC20() {
+    const { approval, bridge } = getBridgeERC20L1toL2Transactions({
+        l1Token: config[environment].USDC_L1,
+        l2Token: config[environment].USDC_L2,
+        amount: 1_000_000n, //1 USDC
+        from: smartAccountL1.address,
+        /** Network params */
+        publicClientL1,
+        l1StandardBridge: config[environment].l1StandardBridge,
+    })
 
-            console.log(`Bridging ${amountBridge} (wei) USDC ${blockExplorerL1}/tx/${txHashBridge}`)
-            await publicClientL1.waitForTransactionReceipt({ hash: txHashBridge });
-        } catch (err) {
-            console.debug(err)
-                if (err instanceof BaseError) {
-                const revertError = err.walk(err => err instanceof ContractFunctionRevertedError)
-                if (revertError instanceof ContractFunctionRevertedError) {
-                const errorName = revertError.data?.errorName ?? ''
-                // do something with `errorName`
-                console.debug(revertError)
-            }
+    const transactions = []
+    smartAccountClientL1.send
+}
+
+export interface AlgebraSwapERC20Params {
+    /** Swap params */
+    tokenIn: Address,
+    tokenOut: Address,
+    amountIn: bigint,
+    amountOutMinimum: bigint,
+    from: Address,
+    recipient?: Address,
+    deadline?: bigint
+    /** Network params */
+    publicClient: PublicClient,
+    algebraSwapRouter: Address,
+}
+/**
+ * Get transactions to swap ERC20 token using Algebra Swap Router
+ * @param params
+ * @return necessary transactions to complete bridging
+ */
+export async function getSwapERC20Transactions(params: AlgebraSwapERC20Params): Promise<{
+    approval?: { account: Address, to: Address, data: Hex },
+    swap: { account: Address, to: Address, data: Hex }
+}> {
+    const { tokenIn, tokenOut,  amountIn, amountOutMinimum, algebraSwapRouter, from, publicClient } = params;
+    const recipient = params.recipient ?? from; //default swap to self
+    const deadline = params.deadline ?? (Date.now() + 600) * 1000; //default expire in 10min
+
+    // Check Allowance & Approve ERC20 for swap router
+    let approval: { account: Address, to: Address, data: Hex } | undefined;
+    const amountApproved = await publicClient.readContract({
+        address: tokenIn,
+        abi: [allowance],
+        functionName: "allowance",
+        args: [from, algebraSwapRouter]
+    })
+
+    if (amountApproved < amountIn) {
+        const data = await encodeFunctionData({
+            abi: [approve],
+            functionName: "approve",
+            args: [algebraSwapRouter, amountIn]
+        })
+        approval = { account: from, to: tokenIn, data }
+    }
+
+    const data = encodeFunctionData({
+        abi: SwapRouterAbi,
+        functionName: "exactInputSingle",
+        args: [{
+            tokenIn,
+            tokenOut,
+            recipient,
+            deadline,
+            amountIn,
+            amountOutMinimum,
+            limitSqrtPrice: 0n
+        }]
+    })
+
+    return {
+        approval,
+        swap: {
+            account: from,
+            to: algebraSwapRouter,
+            data
         }
-  }
     }
 }
 
-await bridgeERC20()
+async function main() {
 
-/***** Submit Dummy Gasless Transaction *****/
-// const txHashL1 = await smartAccountClientL1.sendTransaction({
-    // to: "0xd8da6bf26964af9d7eed9e03e53415d37aa96045", //vitalik.eth
-    // value: 0n,
-    // data: "0x1234",
-// })
-// console.log(`User operation included: ${blockExplorerL1}/tx/${txHashL1}`)
+}
 
-// const txHashL2 = await smartAccountClientL2.sendTransaction({
-    // to: "0xd8da6bf26964af9d7eed9e03e53415d37aa96045", //vitalik.eth
-    // value: 0n,
-    // data: "0x1234",
-// })
-// console.log(`User operation included: ${blockExplorerL2}/tx/${txHashL2}`)
-
-// const MAINNET_USDC = "0xd988097fb8612cc24eeC14542bC03424c656005f";
-// const fede = "0xEa5bf2AD6af8168DE10546B3e4D5679bb22305C8"
-// const amount = 5_000_000
-//
-// const txHash = await smartAccountClientL2.writeContract({
-    // address: MAINNET_USDC,
-    // abi: [transfer],
-    // functionName: "transfer",
-    // args: [fede, amount]
-// })
-//
-// console.log(`User operation included: ${blockExplorerL2}/tx/${txHash}`)
+await main()
