@@ -183,8 +183,7 @@ const smartAccountClientL2: SmartAccountClient<ENTRYPOINT_ADDRESS_V07_TYPE> = cr
     },
 });
 
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-async function bridgeEthTutorial({ amount }: { amount: bigint }) {
+export async function bridgeEthTutorial({ amount }: { amount: bigint }) {
     const balanceL1Initial = await publicClientL1.getBalance({ address: smartAccountL1.address });
     const balanceL2Initial = await publicClientL2.getBalance({ address: smartAccountL2.address });
 
@@ -331,8 +330,7 @@ export async function getBridgeERC20L1toL2Transactions(params: BridgeERC20L1toL2
     };
 }
 
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-async function bridgeUSDCTutorial({ amount }: { amount: bigint }) {
+export async function bridgeUSDCTutorial({ amount }: { amount: bigint }) {
     const l1Token = config[environment].USDC_L1;
     const l2Token = config[environment].USDC_L2;
 
