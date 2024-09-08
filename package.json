@@ -49,9 +49,6 @@
     "lint:fix": "eslint --fix 'src/**/*.ts'",
     "lint:staged": "lint-staged",
     "madge": "madge src/index.ts -c",
-    "test": "pnpm run test:ci",
-    "test:ci": "vitest --run",
-    "test:watch": "vitest",
     "tsc": "tsc",
     "tsc:trace": "tsc --generateTrace lib/trace && analyze-trace lib/trace",
     "tsc:watch": "tsc -w"
