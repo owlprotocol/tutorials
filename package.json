@@ -1,25 +1,90 @@
 {
-  "name": "owl-tutorial-template",
-  "version": "1.0.0",
-  "description": "A template repository for Owl tutorials (https://docs.owl.build/)",
-  "main": "index.ts",
+  "name": "@owlprotocol/tutorials",
+  "version": "3.0.0",
+  "keywords": [
+    "web3",
+    "solidity",
+    "trpc",
+    "react-query"
+  ],
+  "private": true,
   "type": "module",
-  "scripts": {
-    "start": "tsx index.ts",
-    "clean:node_modules": "rimraf node_modules ./**/node_modules"
+  "homepage": "https://owlprotocol.github.io/tutorials",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/owlprotocol/owlprotocol.git"
   },
-  "author": "",
+  "copyright": "Copyright 2023 Owl Protocol",
   "license": "MIT",
+  "author": {
+    "name": "Leo Vigna",
+    "email": "leo@owlprotocol.xyz",
+    "url": "https://github.com/leovigna"
+  },
+  "files": [
+    "dist/*",
+    "lib/*",
+    "src/*",
+    "LICENSE",
+    "README.md"
+  ],
+  "main": "./lib/cjs/index.cjs",
+  "module": "./lib/esm/index.mjs",
+  "types": "./lib/types/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./lib/types/index.d.ts",
+      "require": "./lib/cjs/index.js",
+      "import": "./lib/esm/index.js"
+    }
+  },
+  "scripts": {
+    "build": "npm-run-all -p tsc esbuild",
+    "build:watch": "npm-run-all -p tsc:watch esbuild:watch",
+    "clean": "rimraf lib dist",
+    "depcheck": "depcheck",
+    "esbuild": "node esbuild.config.mjs",
+    "esbuild:watch": "ESBUILD_WATCH=true node esbuild.config.mjs",
+    "lint": "eslint 'src/**/*.ts'",
+    "lint:fix": "eslint --fix 'src/**/*.ts'",
+    "lint:staged": "lint-staged",
+    "madge": "madge src/index.ts -c",
+    "test": "pnpm run test:ci",
+    "test:ci": "vitest --run",
+    "test:watch": "vitest",
+    "tsc": "tsc",
+    "tsc:trace": "tsc --generateTrace lib/trace && analyze-trace lib/trace",
+    "tsc:watch": "tsc -w"
+  },
   "dependencies": {
+    "@owlprotocol/contracts-diamond": "^3.0.0",
+    "@owlprotocol/chains": "^3.0.0",
     "@owlprotocol/core-trpc": "^3.0.0",
+    "@owlprotocol/clients": "^3.0.0",
+    "@owlprotocol/viem-utils": "^3.0.0",
     "dotenv": "^16.4.5",
     "permissionless": "^0.1.19",
     "viem": "2.9.20"
   },
   "devDependencies": {
+    "@owlprotocol/esbuild-config": "^3.0.0",
+    "@owlprotocol/eslint-config": "^3.0.0",
+    "@owlprotocol/prettier-config": "^3.0.0",
+    "@owlprotocol/tsconfig": "^3.0.0",
     "@types/node": "^20.11.10",
-    "tsx": "^4.11.0",
-    "rimraf": "^3.0.2"
+    "@typescript/analyze-trace": "^0.10.1",
+    "lint-staged": "^11.2.6",
+    "madge": "^5.0.2",
+    "npm-run-all": "^4.1.5",
+    "rimraf": "^3.0.2",
+    "typescript": "5.4.5",
+    "vite": "^5.1.6",
+    "vitest": "^1.4.0",
+    "depcheck": "^1.4.7"
+  },
+  "bugs": {
+    "url": "https://github.com/owlprotocol/owlprotocol/issues",
+    "email": "leo@owlprotocol.xyz"
   },
   "funding": "https://owlprotocol.xyz",
   "engines": {
