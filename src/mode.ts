@@ -89,8 +89,8 @@ const config = {
         //kim.exchange not deployed on testnet
         poolInitCodeHash: "0x" as Hex,
         poolDeployer: "0x0000000000000000000000000000000000000000",
-        swapRouterAddress: "0x0000000000000000000000000000000000000000",
-        quoterV2Address: "0x0000000000000000000000000000000000000000",
+        swapRouter: "0x0000000000000000000000000000000000000000",
+        quoterV2: "0x0000000000000000000000000000000000000000",
     },
     mainnet: {
         chainL1: mainnet,
@@ -102,8 +102,8 @@ const config = {
         WETH_L2: "0x4200000000000000000000000000000000000006",
         poolInitCodeHash: "0xf96d2474815c32e070cd63233f06af5413efc5dcb430aee4ff18cc29007c562d" as Hex,
         poolDeployer: "0x6414A461B19726410E52488d9D5ff33682701635",
-        quoterV2Address: "0x7c5aaa464f736740156fd69171505d344855d1e5",
-        swapRouterAddress: "0xAc48FcF1049668B285f3dC72483DF5Ae2162f7e8",
+        quoterV2: "0x7c5aaa464f736740156fd69171505d344855d1e5",
+        swapRouter: "0xAc48FcF1049668B285f3dC72483DF5Ae2162f7e8",
     },
 } as const;
 
@@ -118,8 +118,8 @@ const {
     WETH_L2,
     poolInitCodeHash,
     poolDeployer,
-    quoterV2Address,
-    swapRouterAddress,
+    quoterV2,
+    swapRouter,
 } = config[environment];
 
 // clients
@@ -444,7 +444,7 @@ export async function swapERC20Tutorial({ amount }: { amount: bigint }) {
         publicClient: publicClientL2,
         address: USDC_L2,
         owner: smartAccountL2.address,
-        spender: swapRouterAddress,
+        spender: swapRouter,
         amount,
     });
     const swap = getSwapExactInputTransaction({
@@ -452,7 +452,7 @@ export async function swapERC20Tutorial({ amount }: { amount: bigint }) {
         amountIn: amount,
         amountOutMinimum: 0n,
         recipient: smartAccountL2.address,
-        swapRouterAddress,
+        swapRouter,
         weth: WETH_L2,
     });
 
@@ -475,18 +475,16 @@ export async function balancePortfolioTutorial() {
     //Note: Slippage can impact success / failure of trade
     const portfolio = await balancePortfolio({
         publicClient: publicClientL2,
-        quoterV2Address,
+        quoterV2,
         poolInitCodeHash,
         poolDeployer,
-        swapRouterAddress,
-        intermediateAddresses: [WETH_L2],
+        swapRouter,
         account: smartAccountL2.address,
         assets: [
             { address: USDC_L2, weight: 1 },
             { address: WETH_L2, weight: 0 },
             { address: MODE_L2, weight: 0 },
         ],
-        quoteToken: WETH_L2,
         slippagePercent: 2,
     });
 
