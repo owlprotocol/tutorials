@@ -54,6 +54,7 @@
   },
   "dependencies": {
     "@owlprotocol/contracts-diamond": "^3.0.0",
+    "@owlprotocol/contracts-algebra-integral": "^3.0.0",
     "@owlprotocol/chains": "^3.0.0",
     "@owlprotocol/core-trpc": "^3.0.0",
     "@owlprotocol/clients": "^3.0.0",
