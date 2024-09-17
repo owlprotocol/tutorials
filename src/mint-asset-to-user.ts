@@ -1,7 +1,7 @@
 // Load environment variables
 import dotenv from "dotenv";
 dotenv.config();
-import { createClient } from "@owlprotocol/core-trpc";
+import { createClient } from "@owlprotocol/core-trpc/client";
 import { existsSync, writeFileSync } from "fs";
 // Owl Protocol imports
 
