@@ -4,11 +4,11 @@ dotenv.config();
 // Viem imports
 import { Hex, createPublicClient, http } from "viem";
 import { generatePrivateKey, privateKeyToAccount } from "viem/accounts";
+import { entryPoint07Address, createBundlerClient, createPaymasterClient } from "viem/account-abstraction";
 // Permissionless imports
-import { createBundlerClient, createSmartAccountClient } from "permissionless";
-import { signerToSimpleSmartAccount } from "permissionless/accounts";
-import { createPimlicoPaymasterClient } from "permissionless/clients/pimlico";
-import { ENTRYPOINT_ADDRESS_V07 } from "permissionless/utils";
+import { createSmartAccountClient } from "permissionless";
+import { toSimpleSmartAccount } from "permissionless/accounts";
+import { getUserOperationGasPrice } from "permissionless/actions/pimlico";
 import { existsSync, writeFileSync } from "fs";
 
 //Hello World
@@ -33,6 +33,7 @@ if (!API_KEY_SECRET || API_KEY_SECRET === "YOUR_API_KEY_SECRET") {
 // chainId supported by Owl Protocol.
 // Here we use the Hedwig Testnet for quick testing
 const chain = {
+    id: 150150,
     chainId: 150150,
     slug: "hedwig-testnet",
     name: "Hedwig Testnet",
@@ -61,9 +62,8 @@ const publicClient = createPublicClient({
 // Create paymaster viem client to sponsor UserOp
 // Learn more at https://docs.pimlico.io/permissionless/reference/clients/pimlicoPaymasterClient
 const paymasterUrl = `https://api.owl.build/${chainId}/rpc?apikey=${API_KEY_SECRET}`;
-const paymasterClient = createPimlicoPaymasterClient({
+const paymasterClient = createPaymasterClient({
     transport: http(paymasterUrl),
-    entryPoint: ENTRYPOINT_ADDRESS_V07,
 });
 
 // Create bundler viem client to submit UserOp
@@ -71,7 +71,6 @@ const paymasterClient = createPimlicoPaymasterClient({
 const bundlerUrl = `https://api.owl.build/${chainId}/rpc?apikey=${API_KEY_SECRET}`;
 const bundlerClient = createBundlerClient({
     transport: http(bundlerUrl),
-    entryPoint: ENTRYPOINT_ADDRESS_V07,
 });
 
 /***** Create Smart Wallet Owner *****/
@@ -90,10 +89,14 @@ const owner = privateKeyToAccount(privateKey);
 
 /***** Create Smart Account *****/
 // Simple smart account owned by signer
-const smartAccount = await signerToSimpleSmartAccount(publicClient, {
-    signer: owner,
+const smartAccount = await toSimpleSmartAccount({
+    client: publicClient,
+    owner,
     factoryAddress: "0xe7A78BA9be87103C317a66EF78e6085BD74Dd538", //Simple Smart Account factory
-    entryPoint: ENTRYPOINT_ADDRESS_V07,
+    entryPoint: {
+        address: entryPoint07Address,
+        version: "0.7",
+    },
 });
 
 console.log(`Smart account address: ${blockExplorer}/address/${smartAccount.address}`);
@@ -101,14 +104,13 @@ console.log(`Smart account address: ${blockExplorer}/address/${smartAccount.addr
 /***** Create Smart Account Client *****/
 const smartAccountClient = createSmartAccountClient({
     account: smartAccount,
-    entryPoint: ENTRYPOINT_ADDRESS_V07,
     chain,
     bundlerTransport: http(bundlerUrl),
-    middleware: {
-        gasPrice: async () => {
-            return (await bundlerClient.getUserOperationGasPrice()).fast;
+    paymaster: paymasterClient,
+    userOperation: {
+        estimateFeesPerGas: async () => {
+            return (await getUserOperationGasPrice(bundlerClient)).fast;
         },
-        sponsorUserOperation: paymasterClient.sponsorUserOperation,
     },
 });
 

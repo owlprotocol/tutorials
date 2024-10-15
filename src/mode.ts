@@ -15,13 +15,16 @@ import {
     encodeFunctionData,
     Hex,
     formatUnits,
+    WalletClient,
+    Transport,
+    Account,
 } from "viem";
+import { entryPoint07Address } from "viem/account-abstraction";
 
 // Permissionless imports
-import { createSmartAccountClient } from "permissionless";
-import type { SmartAccountClient } from "permissionless";
-import { signerToSimpleSmartAccount } from "permissionless/accounts";
-import { ENTRYPOINT_ADDRESS_V07 } from "permissionless/utils";
+import { getUserOperationGasPrice } from "permissionless/actions/pimlico";
+import { createSmartAccountClient } from "permissionless/clients";
+import { toSimpleSmartAccount } from "permissionless/accounts";
 
 // Owl Protocol imports
 import { balanceOf, allowance, approve } from "@owlprotocol/contracts-diamond/artifacts/IERC20";
@@ -40,8 +43,7 @@ import {
 } from "@owlprotocol/clients";
 import { createClient } from "@owlprotocol/core-trpc/client";
 import { topupAddressL2 } from "@owlprotocol/viem-utils";
-import { publicActionsL2, walletActionsL1 } from "viem/op-stack";
-import { ENTRYPOINT_ADDRESS_V07_TYPE } from "permissionless/types";
+import { publicActionsL2, WalletActionsL1, walletActionsL1 } from "viem/op-stack";
 import { existsSync, writeFileSync } from "fs";
 
 //Hello World
@@ -79,8 +81,8 @@ console.debug(user);
 const environment: "testnet" | "mainnet" = "mainnet";
 const config = {
     testnet: {
-        chainL1: sepolia,
-        chainL2: modeTestnet,
+        chainL1: { ...sepolia, id: sepolia.chainId },
+        chainL2: { ...modeTestnet, id: modeTestnet.chainId },
         l1StandardBridge: "0xbC5C679879B2965296756CD959C3C739769995E2", //https://docs.mode.network/general-info/mainnet-contract-addresses/l1-l2-contracts
         USDC_L1: "0x1c7D4B196Cb0C7B01d743Fbc6116a902379C7238", //mint some at https://faucet.circle.com/
         USDC_L2: "0x514832A97F0b440567055A73fe03AA160017b990", //deployed using L2_OptimismMintableERC20Factory
@@ -93,8 +95,8 @@ const config = {
         quoterV2: "0x0000000000000000000000000000000000000000",
     },
     mainnet: {
-        chainL1: mainnet,
-        chainL2: mode,
+        chainL1: { ...mainnet, id: mainnet.chainId },
+        chainL2: { ...mode, id: mode.chainId },
         l1StandardBridge: "0x735aDBbE72226BD52e818E7181953f42E3b0FF21",
         USDC_L1: "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48",
         USDC_L2: "0xd988097fb8612cc24eeC14542bC03424c656005f",
@@ -133,9 +135,9 @@ const blockExplorerL2 = chainL2.blockExplorers?.default.url!;
 
 // Create public viem client to read data from blockchain
 // Learn more at https://viem.sh/docs/clients/public
-const publicClientL1 = createPublicClient({ chain: { ...chainL1, id: chainIdL1 } as Chain, transport: http(rpcL1) });
+const publicClientL1 = createPublicClient({ chain: chainL1 as Chain, transport: http(rpcL1) });
 const publicClientL2 = createPublicClient({
-    chain: { ...chainL2, id: chainIdL2 } as Chain,
+    chain: chainL2 as Chain,
     transport: http(rpcL2),
 }).extend(publicActionsL2());
 
@@ -166,46 +168,52 @@ console.debug(`Externally owned account address: ${blockExplorerL2}/address/${ow
 
 /***** Create Smart Account *****/
 // Simple smart account owned by signer
-const smartAccountL1 = await signerToSimpleSmartAccount(publicClientL1, {
-    signer: owner,
+const smartAccountL1 = await toSimpleSmartAccount({
+    client: publicClientL1,
+    owner,
     factoryAddress: "0xe7A78BA9be87103C317a66EF78e6085BD74Dd538", //Simple Smart Account factory
-    entryPoint: ENTRYPOINT_ADDRESS_V07,
+    entryPoint: {
+        address: entryPoint07Address,
+        version: "0.7",
+    },
 });
 
-const smartAccountL2 = await signerToSimpleSmartAccount(publicClientL2, {
-    signer: owner,
+const smartAccountL2 = await toSimpleSmartAccount({
+    client: publicClientL2,
+    owner,
     factoryAddress: "0xe7A78BA9be87103C317a66EF78e6085BD74Dd538", //Simple Smart Account factory
-    entryPoint: ENTRYPOINT_ADDRESS_V07,
+    entryPoint: {
+        address: entryPoint07Address,
+        version: "0.7",
+    },
 });
 
 console.log(`Smart account address: ${blockExplorerL1}/address/${smartAccountL1.address}`);
 console.log(`Smart account address: ${blockExplorerL2}/address/${smartAccountL2.address}`);
 
 /***** Create Smart Account Client *****/
-const smartAccountClientL1: SmartAccountClient<ENTRYPOINT_ADDRESS_V07_TYPE> = createSmartAccountClient({
+const smartAccountClientL1 = createSmartAccountClient({
     account: smartAccountL1,
-    entryPoint: ENTRYPOINT_ADDRESS_V07,
-    chain: chainL1,
+    chain: chainL1 as Chain,
     bundlerTransport: http(bundlerUrlL1),
-    middleware: {
-        gasPrice: async () => {
-            return (await bundlerClientL1.getUserOperationGasPrice()).fast;
+    paymaster: paymasterClientL1,
+    userOperation: {
+        estimateFeesPerGas: async () => {
+            return (await getUserOperationGasPrice(bundlerClientL1)).fast;
         },
-        sponsorUserOperation: paymasterClientL1.sponsorUserOperation,
     },
     //Extend with L1 actions
 }).extend(walletActionsL1());
 
-const smartAccountClientL2: SmartAccountClient<ENTRYPOINT_ADDRESS_V07_TYPE> = createSmartAccountClient({
+const smartAccountClientL2 = createSmartAccountClient({
     account: smartAccountL2,
-    entryPoint: ENTRYPOINT_ADDRESS_V07,
-    chain: chainL2,
+    chain: chainL2 as Chain,
     bundlerTransport: http(bundlerUrlL2),
-    middleware: {
-        gasPrice: async () => {
-            return (await bundlerClientL2.getUserOperationGasPrice()).fast;
+    paymaster: paymasterClientL2,
+    userOperation: {
+        estimateFeesPerGas: async () => {
+            return (await getUserOperationGasPrice(bundlerClientL2)).fast;
         },
-        sponsorUserOperation: paymasterClientL2.sponsorUserOperation,
     },
 });
 
@@ -242,7 +250,8 @@ export async function bridgeEthTutorial({ amount }: { amount: bigint }) {
     } = await topupAddressL2({
         publicClientL1,
         publicClientL2,
-        walletClientL1: smartAccountClientL1,
+        walletClientL1: smartAccountClientL1 as unknown as WalletClient<Transport, Chain, Account> &
+            WalletActionsL1<Chain, Account>,
         address: smartAccountL2.address,
         minBalance: 0n,
         targetBalance: amount,
@@ -405,9 +414,8 @@ export async function bridgeUSDCTutorial({ amount }: { amount: bigint }) {
     }
     transactions.push({ to: bridge.to, value: 0n, data: bridge.data });
 
-    //TODO: Update viem & pimlico versions for new interface (removes sendTransactions)
-    const hash = await smartAccountClientL1.sendTransactions({
-        transactions,
+    const hash = await smartAccountClientL1.sendTransaction({
+        calls: transactions,
     });
 
     console.log(`${chainL1.name} -> ${chainL2.name} bridge USDC transaction ${blockExplorerL1}/tx/${hash}`);
@@ -462,9 +470,8 @@ export async function swapERC20Tutorial({ amount }: { amount: bigint }) {
     }
     transactions.push(swap);
 
-    //TODO: Update viem & pimlico versions for new interface
-    const hash = await smartAccountClientL2.sendTransactions({
-        transactions,
+    const hash = await smartAccountClientL2.sendTransaction({
+        calls: transactions,
     });
 
     console.log(`${chainL2.name} USDC/WETH swap transaction ${blockExplorerL2}/tx/${hash}`);
@@ -509,8 +516,8 @@ async function main() {
     // Balance portfolio
     const portfolio = await balancePortfolioTutorial();
 
-    const hash = await smartAccountClientL2.sendTransactions({
-        transactions: portfolio.transactions,
+    const hash = await smartAccountClientL2.sendTransaction({
+        calls: portfolio.transactions,
     });
     console.debug({ hash });
 

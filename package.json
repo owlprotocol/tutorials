@@ -60,8 +60,8 @@
     "@owlprotocol/clients": "^3.0.0",
     "@owlprotocol/viem-utils": "^3.0.0",
     "dotenv": "^16.4.5",
-    "permissionless": "^0.1.19",
-    "viem": "2.9.20"
+    "permissionless": "0.2.6",
+    "viem": "2.21.19"
   },
   "devDependencies": {
     "@owlprotocol/esbuild-config": "^3.0.0",
