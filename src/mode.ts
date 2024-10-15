@@ -15,9 +15,6 @@ import {
     encodeFunctionData,
     Hex,
     formatUnits,
-    WalletClient,
-    Transport,
-    Account,
 } from "viem";
 import { entryPoint07Address } from "viem/account-abstraction";
 
@@ -43,7 +40,6 @@ import {
 } from "@owlprotocol/clients";
 import { createClient } from "@owlprotocol/core-trpc/client";
 import { topupAddressL2 } from "@owlprotocol/viem-utils";
-import { publicActionsL2, WalletActionsL1, walletActionsL1 } from "viem/op-stack";
 import { existsSync, writeFileSync } from "fs";
 
 //Hello World
@@ -139,7 +135,7 @@ const publicClientL1 = createPublicClient({ chain: chainL1 as Chain, transport: 
 const publicClientL2 = createPublicClient({
     chain: chainL2 as Chain,
     transport: http(rpcL2),
-}).extend(publicActionsL2());
+});
 
 // Sanity check RPC working
 console.debug({
@@ -203,7 +199,7 @@ const smartAccountClientL1 = createSmartAccountClient({
         },
     },
     //Extend with L1 actions
-}).extend(walletActionsL1());
+});
 
 const smartAccountClientL2 = createSmartAccountClient({
     account: smartAccountL2,
@@ -248,10 +244,8 @@ export async function bridgeEthTutorial({ amount }: { amount: bigint }) {
         l1DepositReceipt,
         l2DepositReceipt,
     } = await topupAddressL2({
-        publicClientL1,
-        publicClientL2,
-        walletClientL1: smartAccountClientL1 as unknown as WalletClient<Transport, Chain, Account> &
-            WalletActionsL1<Chain, Account>,
+        clientL2: publicClientL2,
+        clientL1: smartAccountClientL1,
         address: smartAccountL2.address,
         minBalance: 0n,
         targetBalance: amount,
