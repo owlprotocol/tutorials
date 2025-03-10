@@ -28,6 +28,7 @@ const client = createClient({ apiKey: API_KEY_SECRET });
 /***** Create a user *****/
 const user = await client.projectUser.createOrSet.mutate({
     email: "leo@owlprotocol.xyz", //Owl Protocol CEO (Send me something cool!)
+    createdAt: Date.now(),
 });
 
 /***** Get a user ******/
